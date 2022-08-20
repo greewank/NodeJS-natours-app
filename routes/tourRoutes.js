@@ -1,7 +1,7 @@
 // const e = require('express');
 const express = require('express');
-
 const tourController = require('../controllers/tourController');
+const authController = require('../controllers/authController');
 
 const router = express.Router(); // Here a new router is created and saved into tourRouter.
 
@@ -18,7 +18,7 @@ router.route('/monthly-plan/:year').get(tourController.getMonthlyPlan);
 // Instead of the above ones we can chain the http methods.(This is for the ones that don't need id.)
 router
   .route('/')
-  .get(tourController.getAllTours)
+  .get(authController.protect, tourController.getAllTours)
   .post(tourController.createTour);
 
 // These for the ones that need an id.
