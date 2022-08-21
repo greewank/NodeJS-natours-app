@@ -17,6 +17,11 @@ const userSchema = new mongoose.Schema({
     validate: [validator.isEmail, 'Please provide a valid email!'],
   },
   photo: String, //It's string because this is going to store only the path of the photo
+  role: {
+    type: String,
+    enum: ['user', 'guide', 'lead-guide', 'admin'],
+    default: 'user',
+  },
   password: {
     type: String,
     required: [true, 'Define a password for the user!'],
@@ -34,6 +39,7 @@ const userSchema = new mongoose.Schema({
       message: 'Passwords should be the same!',
     },
   },
+  passwordChangedAt: Date,
 });
 
 // We're going to use document (pre-save) middleware for authentication which works in between getting the data and saving it to the database.
@@ -53,6 +59,19 @@ userSchema.methods.correctPassword = async function (
   userPassword
 ) {
   return await bcrypt.compare(candidatePassword, userPassword);
+};
+
+userSchema.methods.changedPasswordAfter = function (JWTTimestamp) {
+  // In instance method, the this keyword always points to the current document.
+  if (this.passwordChangedAt) {
+    const changedTimestamp = parseInt(
+      this.passwordChangedAt.getTime() / 1000,
+      10
+    );
+    console.log(changedTimestamp, JWTTimestamp);
+    return JWTTimestamp < changedTimestamp; //false means not changed and true means changed
+  }
+  return false;
 };
 
 // (Model variables should be capital letter). name of the model followed by the schema.
