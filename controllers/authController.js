@@ -1,3 +1,4 @@
+const { promisify } = require('util');
 const jwt = require('jsonwebtoken');
 const User = require('../models/userModel');
 const catchAsync = require('../utils/catchAsync');
@@ -16,6 +17,8 @@ exports.signup = catchAsync(async (req, res, next) => {
     email: req.body.email,
     password: req.body.password,
     passwordConfirm: req.body.passwordConfirm,
+    role: req.body.role,
+    passwordChangedAt: req.body.passwordChangedAt,
   });
 
   //   The first argument in the sign method is the payload(object for all the data inside the token), second is for jwt secret key and third is called option which is optional and in this case specified when the session will be expired.
@@ -60,7 +63,7 @@ exports.protect = catchAsync(async (req, res, next) => {
   ) {
     token = req.headers.authorization.split(' ')[1];
   }
-  console.log(token);
+  //   console.log(token);
 
   if (!token) {
     return next(
@@ -69,7 +72,33 @@ exports.protect = catchAsync(async (req, res, next) => {
     );
   }
   //   2. Verification token
+  const decoded = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
   //   3. Check if user still exists
+  const currentUser = await User.findById(decoded.id);
+  if (!currentUser) {
+    return next(
+      new AppError('The user belonging to this token no longer exists!', 401)
+    );
+  }
+
   //   4. Check if user changed password after the token was issued
+  if (currentUser.changedPasswordAfter(decoded.iat)) {
+    return next(
+      new AppError('Recently changed password! Please login again'),
+      401
+    );
+  }
+  //   Grants access to the protected route
+  req.user = currentUser;
   next();
 });
+
+// restricting who can delete tours (only responsible people like admin or lead-tour)
+exports.restrictTo = (...roles) => {
+  return (req, res, next) => {
+    if (!roles.includes(req.user.role)) {
+      return next(new AppError('You dont have access to the page!', 403));
+    }
+    next();
+  };
+};
