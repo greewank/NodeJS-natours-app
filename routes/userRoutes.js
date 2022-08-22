@@ -9,7 +9,19 @@ router.post('/signup', authController.signup);
 // this one doesn't follow the REST architecture exactly.
 router.post('/login', authController.login);
 
+// forgot and reset password
+router.post('/forgotPassword', authController.forgotPassword);
+router.patch('/resetPassword/:token', authController.resetPassword);
+
+router.patch(
+  '/updatePassword',
+  authController.protect,
+  authController.updatePassword
+);
+
 // This is for the users resource.
+
+router.patch('/updateMe', authController.protect, userController.updateMe);
 router
   .route('/')
   .get(userController.getAllUsers)
