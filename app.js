@@ -2,6 +2,10 @@ const express = require('express');
 // const { application } = require('express');
 const morgan = require('morgan');
 
+const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
+const mongoSanitize = require('express-mongo-sanitize');
+const xss = require('xss-clean');
 const AppError = require('./utils/appError');
 const globalErrorHandler = require('./controllers/errorController');
 const tourRouter = require('./routes/tourRoutes');
@@ -9,12 +13,34 @@ const userRouter = require('./routes/userRoutes');
 
 const app = express(); //Is going to include express in the app variable.
 
-// MIDDLEWARE
+// GLOBAL MIDDLEWARE
 // console.log(process.send.NODE_ENV);
+// Set security HTTP headers
+app.use(helmet());
+
+// Development logging
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
-app.use(express.json()); //Use of middleware (function that can modify the incoming request data) which is express.json in this case. 'use' method is going to use/create the middleware here.
+
+// Limit request from same API
+const limiter = rateLimit({
+  max: 100,
+  windowMs: 60 * 60 * 1000,
+  message: 'Too many requests from this ip. Please try again in an hour.',
+});
+app.use('/api', limiter);
+
+// Body parser, reading data from body into req.body
+app.use(express.json({ limit: '50kb' })); //Use of middleware (function that can modify the incoming request data) which is express.json in this case. 'use' method is going to use/create the middleware here.
+
+// Data sanitization against NOSQL query injection
+app.use(mongoSanitize());
+
+// Data sanitization against XSS(Cross-site) scripting attacks
+app.use(xss());
+
+// Serving static files
 app.use(express.static(`${__dirname}/public`)); //Use of middleware for static files so the files which don't go into any route but simply serve the file we specified from the public folder (files that we can't access from the routes we created).
 
 // Creating our own middleware:
